@@ -1,0 +1,8 @@
+plugins { id 'java'; id 'net.neoforged.moddev' version '2.0.107' }
+group = 'com.example.armorpresets'
+version = '0.6.0-dev'
+base { archivesName = 'armorpresets' }
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+neoForge { version = '21.1.209' }
+repositories { mavenCentral() }
+tasks.withType(JavaCompile).configureEach { options.encoding = 'UTF-8' }
