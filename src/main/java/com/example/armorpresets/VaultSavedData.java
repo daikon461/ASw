@@ -32,6 +32,7 @@ public final class VaultSavedData extends SavedData {
             CompoundTag entry = players.getCompound(i);
             if (!entry.hasUUID("Id")) continue;
             PresetVault vault = new PresetVault();
+            vault.restoreActivePreset(entry.getInt("ActivePreset") - 1);
             ListTag sets = entry.getList("Sets", Tag.TAG_COMPOUND);
             for (int j = 0; j < sets.size(); j++) {
                 CompoundTag set = sets.getCompound(j);
@@ -57,6 +58,7 @@ public final class VaultSavedData extends SavedData {
         for (var playerEntry : vaults.entrySet()) {
             CompoundTag entry = new CompoundTag();
             entry.putUUID("Id", playerEntry.getKey());
+            entry.putInt("ActivePreset", playerEntry.getValue().getActivePreset() + 1);
             ListTag sets = new ListTag();
             PresetVault vault = playerEntry.getValue();
             for (int i = 0; i < PresetVault.PRESET_COUNT; i++) {

@@ -12,6 +12,9 @@ public final class PresetVault {
         EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS,
         EquipmentSlot.FEET, EquipmentSlot.MAINHAND, EquipmentSlot.OFFHAND
     };
+    private int activePreset = -1;
+    public int getActivePreset() { return activePreset; }
+    public void restoreActivePreset(int value) { activePreset = value >= 0 && value < PRESET_COUNT ? value : -1; }
     private final ItemStack[][] presets = new ItemStack[PRESET_COUNT][SLOTS_PER_PRESET];
     private final String[] names = {"セット1", "セット2", "セット3", "セット4", "セット5", "セット6"};
 
@@ -40,10 +43,41 @@ public final class PresetVault {
         checkPreset(p); checkSlot(s);
         presets[p][s] = stack == null ? ItemStack.EMPTY : stack.copy();
     }
-    /** Swap real stacks: no creative duplication, no item-id reconstruction. */
-    public void swap(Player player, int p) {
-        checkPreset(p);
-        for (int s = 0; s < SLOTS_PER_PRESET; s++) exchangeSlot(player, p, s);
+    /** Returns equipped items to their original preset, never to the destination preset. */
+    public boolean swap(Player player, int target) {
+        checkPreset(target);
+        if (activePreset == target) return true;
+        // On first use, currently equipped items have no known home. Move them to
+        // inventory, refusing the operation if there is insufficient empty space.
+        if (activePreset == -1) {
+            int occupied = 0;
+            for (EquipmentSlot slot : EQUIPMENT)
+                if (!player.getItemBySlot(slot).isEmpty()) occupied++;
+            int free = 0;
+            for (int i = 0; i < player.getInventory().items.size(); i++)
+                if (player.getInventory().items.get(i).isEmpty()) free++;
+            // Main hand is a hotbar slot, which becomes free when its item is removed.
+            if (!player.getMainHandItem().isEmpty()) free++;
+            if (free < occupied) return false;
+            ItemStack[] previous = new ItemStack[SLOTS_PER_PRESET];
+            for (int i = 0; i < SLOTS_PER_PRESET; i++) {
+                previous[i] = player.getItemBySlot(EQUIPMENT[i]).copy();
+                player.setItemSlot(EQUIPMENT[i], ItemStack.EMPTY);
+            }
+            for (ItemStack stack : previous)
+                if (!stack.isEmpty()) player.getInventory().add(stack);
+        } else {
+            // First return the currently worn set to its own reserved slots.
+            for (int i = 0; i < SLOTS_PER_PRESET; i++)
+                presets[activePreset][i] = player.getItemBySlot(EQUIPMENT[i]).copy();
+        }
+        for (int i = 0; i < SLOTS_PER_PRESET; i++) {
+            player.setItemSlot(EQUIPMENT[i], presets[target][i].copy());
+            presets[target][i] = ItemStack.EMPTY;
+        }
+        activePreset = target;
+        player.getInventory().setChanged();
+        return true;
     }
     public void exchangeSlot(Player player, int p, int s) {
         checkPreset(p); checkSlot(s);

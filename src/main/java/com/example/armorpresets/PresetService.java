@@ -10,8 +10,7 @@ public final class PresetService {
             throw new IllegalArgumentException("Missing server state");
         // Both actions exchange equipped stacks with a selected vault set.
         // The GUI can later offer per-slot exchange using exchangeSlot().
-        vault.swap(player, request.presetIndex());
-        save.run();
+        if (vault.swap(player, request.presetIndex())) save.run();
         player.containerMenu.broadcastChanges();
     }
 }
