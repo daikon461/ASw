@@ -11,13 +11,13 @@ import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 import org.lwjgl.glfw.GLFW;
 
-/** Modifier is checked at dispatch: Left Alt + G / 1..6. */
+/** GUI: Left Alt + G; presets: numpad 1..6 (no modifier). */
 public final class ClientKeys {
     private ClientKeys() {}
     public static final KeyMapping OPEN = new KeyMapping("key.armorpresets.open", InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_G, "key.categories.armorpresets");
     public static final KeyMapping[] SWAP = new KeyMapping[6];
     static {
-        for (int i = 0; i < 6; i++) SWAP[i] = new KeyMapping("key.armorpresets.swap" + (i + 1), InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_1 + i, "key.categories.armorpresets");
+        for (int i = 0; i < 6; i++) SWAP[i] = new KeyMapping("key.armorpresets.swap" + (i + 1), InputConstants.Type.KEYSYM, GLFW.GLFW_KEY_KP_1 + i, "key.categories.armorpresets");
     }
     @EventBusSubscriber(modid = ArmorPresetsMod.MOD_ID, value = Dist.CLIENT, bus = EventBusSubscriber.Bus.MOD)
     public static final class Registration {
@@ -36,7 +36,7 @@ public final class ClientKeys {
                 if (alt) mc.setScreen(new PresetScreen());
             }
             for (int i = 0; i < SWAP.length; i++) {
-                while (SWAP[i].consumeClick()) if (alt) PacketDistributor.sendToServer(new SwapPresetPayload(i));
+                while (SWAP[i].consumeClick()) PacketDistributor.sendToServer(new SwapPresetPayload(i));
             }
         }
     }

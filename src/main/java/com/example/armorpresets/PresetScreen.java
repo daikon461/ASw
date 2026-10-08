@@ -7,73 +7,113 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.neoforged.neoforge.network.PacketDistributor;
 
-/** Six presets, per-slot exchange, and rename. Item changes are server-authoritative. */
+/** Large two-column fantasy vault UI. All item mutations are server-authoritative. */
 public final class PresetScreen extends Screen {
     private static final String[] PARTS = {"頭", "胴", "脚", "足", "主手", "副手"};
+    private static final int GOLD = 0xFFF1C879, MUTED = 0xFFBBC2CE;
+    private static final int EDGE = 0xFF9B7843, PANEL = 0xF51B2230;
     private int selected = 0;
+    private int left, top;
     private EditBox rename;
-    private final Button[] presetButtons = new Button[6];
-    public PresetScreen() { super(Component.literal("装備プリセット管理")); }
+    private final Button[] presets = new Button[6];
+
+    public PresetScreen() { super(Component.literal("装備プリセット保管庫")); }
+
+    private void refresh() { PacketDistributor.sendToServer(new RequestSnapshotPayload()); }
+
     @Override protected void init() {
         super.init();
-        int left = width / 2 - 153;
-        int top = height / 2 - 87;
+        left = (width - 466) / 2;
+        top = (height - 310) / 2;
         for (int i = 0; i < 6; i++) {
-            final int idx = i;
-            presetButtons[i] = addRenderableWidget(Button.builder(Component.literal("セット" + (i+1)), b -> {
-                selected = idx;
-                rebuildWidgets();
-            }).bounds(left + (i%3)*104, top + (i/3)*24, 100, 20).build());
+            final int index = i;
+            int x = left + 20, y = top + 65 + i * 32;
+            presets[i] = addRenderableWidget(Button.builder(Component.literal("セット " + (i + 1)), b -> {
+                selected = index;
+                rename.setValue("");
+            }).bounds(x, y, 139, 25).build());
         }
         for (int j = 0; j < 6; j++) {
             final int slot = j;
-            addRenderableWidget(Button.builder(Component.literal(PARTS[j] + " を交換"), b -> {
+            int x = left + 186 + (j % 3) * 86;
+            int y = top + 109 + (j / 3) * 57;
+            addRenderableWidget(Button.builder(Component.literal("交換"), b -> {
                 PacketDistributor.sendToServer(new EditPresetPayload(selected, slot, ""));
-            }).bounds(left + (j%3)*104, top + 55 + (j/3)*24, 100, 20).build());
+                refresh();
+            }).bounds(x + 3, y + 29, 76, 18).build());
         }
-        rename = new EditBox(font, left, top + 112, 180, 20, Component.literal("セット名"));
+        rename = new EditBox(font, left + 187, top + 229, 150, 20, Component.literal("プリセット名"));
         rename.setMaxLength(32);
+        rename.setHint(Component.literal("名前を入力"));
         addRenderableWidget(rename);
-        addRenderableWidget(Button.builder(Component.literal("名前を保存"), b -> {
+        addRenderableWidget(Button.builder(Component.literal("保存"), b -> {
             String name = rename.getValue().strip();
-            if (!name.isEmpty()) PacketDistributor.sendToServer(new EditPresetPayload(selected, -1, name));
-        }).bounds(left + 185, top + 112, 123, 20).build());
-        addRenderableWidget(Button.builder(Component.literal("選択セットを装備"), b -> {
-            PacketDistributor.sendToServer(new SwapPresetPayload(selected));
-        }).bounds(left, top + 139, 308, 20).build());
-        PacketDistributor.sendToServer(new RequestSnapshotPayload());
-    }
-    @Override public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
-        super.render(graphics, mouseX, mouseY, delta);
-        int left = width / 2 - 153;
-        int top = height / 2 - 87;
-        graphics.drawCenteredString(font, title, width / 2, top - 20, 0xFFFFFF);
-        PresetSnapshotPayload snap = ClientSnapshot.get();
-        String name = snap != null && snap.names().size() == 6 ? snap.names().get(selected) : "セット" + (selected + 1);
-        graphics.drawString(font, "選択中: " + name, left, top + 101, 0xFFFFFF);
-        if (snap != null && snap.names().size() == 6) {
-            for (int i = 0; i < 6; i++) {
-                String label = (i == selected ? "▶ " : "") + snap.names().get(i);
-                presetButtons[i].setMessage(Component.literal(label));
+            if (!name.isEmpty()) {
+                PacketDistributor.sendToServer(new EditPresetPayload(selected, -1, name));
+                refresh();
             }
+        }).bounds(left + 344, top + 229, 100, 20).build());
+        addRenderableWidget(Button.builder(Component.literal("✦ 選択したセットを装備 ✦"), b -> {
+            PacketDistributor.sendToServer(new SwapPresetPayload(selected));
+            refresh();
+        }).bounds(left + 185, top + 259, 259, 24).build());
+        refresh();
+    }
+
+    @Override public void renderBackground(GuiGraphics g, int mx, int my, float tick) {
+        g.fillGradient(0, 0, width, height, 0xF0060A12, 0xF0192130);
+    }
+
+    private void frame(GuiGraphics g, int x, int y, int w, int h, int fill, int border) {
+        g.fill(x, y, x + w, y + h, border);
+        g.fill(x + 2, y + 2, x + w - 2, y + h - 2, fill);
+    }
+
+    @Override public void render(GuiGraphics g, int mx, int my, float tick) {
+        renderBackground(g, mx, my, tick);
+        frame(g, left, top, 466, 310, PANEL, EDGE);
+        frame(g, left + 7, top + 7, 452, 296, 0xFF161C28, 0xFF4E4538);
+        g.fillGradient(left + 10, top + 10, left + 456, top + 49, 0xFF423528, 0xFF202D3E);
+        g.drawCenteredString(font, "✦  装 備 プ リ セ ッ ト 保 管 庫  ✦", width / 2, top + 19, GOLD);
+        g.drawString(font, "MY SETS / 登録セット", left + 22, top + 52, MUTED);
+        g.drawString(font, "EQUIPMENT / 装備詳細", left + 187, top + 52, MUTED);
+        frame(g, left + 13, top + 61, 153, 199, 0xFF222B39, 0xFF6A563B);
+        frame(g, left + 177, top + 61, 275, 228, 0xFF222B39, 0xFF6A563B);
+        PresetSnapshotPayload snap = ClientSnapshot.get();
+        boolean valid = snap != null && snap.names().size() == 6;
+        for (int i = 0; i < 6; i++) {
+            int x = left + 17, y = top + 62 + i * 32;
+            frame(g, x, y, 145, 31, i == selected ? 0xFF5B4930 : 0xFF2A3545,
+                i == selected ? GOLD : 0xFF445365);
+            String name = valid ? snap.names().get(i) : "セット " + (i + 1);
+            if (name.length() > 13) name = name.substring(0, 12) + "…";
+            presets[i].setMessage(Component.literal((i == selected ? "◆ " : "") + (i + 1) + "  " + name));
         }
+        String current = valid ? snap.names().get(selected) : "セット " + (selected + 1);
+        g.drawString(font, "選択中：" + font.plainSubstrByWidth(current, 180), left + 188, top + 73, GOLD);
+        int filled = 0;
+        if (snap != null && snap.occupied().size() == 36)
+            for (int j = 0; j < 6; j++) filled += snap.occupied().get(selected * 6 + j);
+        g.drawString(font, "保管 " + filled + " / 6", left + 379, top + 73, MUTED);
+        g.fill(left + 186, top + 94, left + 444, top + 95, EDGE);
+        for (int j = 0; j < 6; j++) {
+            int x = left + 186 + (j % 3) * 86, y = top + 109 + (j / 3) * 57;
+            frame(g, x, y, 82, 51, 0xFF303A4A, 0xFF806A4A);
+            g.drawString(font, PARTS[j], x + 6, y + 6, MUTED);
+        }
+        g.drawString(font, "プリセット名を変更", left + 187, top + 216, MUTED);
+        g.drawCenteredString(font, "左Alt + G：管理画面  |  テンキー1～6：即時切替", width / 2, top + 291, MUTED);
+        super.render(g, mx, my, tick);
         if (snap != null && snap.items().size() == 36) {
             for (int j = 0; j < 6; j++) {
                 var stack = snap.items().get(selected * 6 + j);
-                if (!stack.isEmpty()) {
-                    int x = left + (j % 3) * 104 + 78;
-                    int y = top + 57 + (j / 3) * 24;
-                    graphics.renderItem(stack, x, y);
-                    if (mouseX >= x && mouseX < x + 16 && mouseY >= y && mouseY < y + 16)
-                        graphics.renderTooltip(font, stack, mouseX, mouseY);
-                }
+                if (stack.isEmpty()) continue;
+                int x = left + 186 + (j % 3) * 86 + 57;
+                int y = top + 109 + (j / 3) * 57 + 5;
+                g.renderItem(stack, x, y);
+                if (mx >= x && mx < x + 16 && my >= y && my < y + 16)
+                    g.renderTooltip(font, stack, mx, my);
             }
         }
-        if (snap != null && snap.occupied().size() == 36) {
-            int filled = 0;
-            for (int i = 0; i < 6; i++) filled += snap.occupied().get(selected*6+i);
-            graphics.drawString(font, "保管中: " + filled + "/6 部位", left + 196, top + 101, 0xAAAAAA);
-        }
-        graphics.drawCenteredString(font, "左Alt + 1～6: 切替 / 左Alt + G: 開く", width / 2, top + 166, 0xCCCCCC);
     }
 }
